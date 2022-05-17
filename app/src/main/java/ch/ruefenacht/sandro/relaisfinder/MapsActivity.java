@@ -1,9 +1,16 @@
 package ch.ruefenacht.sandro.relaisfinder;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.FragmentActivity;
 
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -13,6 +20,16 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+
 import ch.ruefenacht.sandro.relaisfinder.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -20,6 +37,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
 
+    @RequiresApi(api = Build.VERSION_CODES.Q)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,7 +51,63 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
 
-        Log.i("LOL", BuildConfig.RELAIS_FINDER_API_URL);
+        if(!checkConnection()) {
+            Log.i("Network-Connection", "No Connection");
+
+            Intent panelIntent = new Intent( Settings.Panel.ACTION_INTERNET_CONNECTIVITY);
+            startActivity(panelIntent);
+        }
+
+        new Thread() {
+            public void run() {
+                try {
+                    URL url = new URL(BuildConfig.RELAIS_FINDER_API_URL + "relais");
+                    Log.i("LOL", url.toString());
+                    URLConnection urlConnection = url.openConnection();
+                    InputStream in = urlConnection.getInputStream();
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+
+                    StringBuilder resultContent = new StringBuilder();
+                    String inputLine;
+                    while ((inputLine = reader.readLine()) != null) {
+                        System.out.println(inputLine);
+                        Log.i("HTTP", inputLine);
+                        resultContent.append(inputLine);
+                    }
+                    in.close();
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            deliverResult(resultContent.toString());
+                        }
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }.start();
+    }
+
+    public void deliverResult(String result) {
+        try {
+            JSONArray jsonArray = new JSONArray(result);
+
+            for(int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+
+                if(!jsonObject.has("ID"))
+                    throw new Exception();
+
+                this.mMap.addMarker(new MarkerOptions().position(new LatLng(jsonObject.getDouble("coordinateX"), jsonObject.getDouble("coordinateY"))).title(jsonObject.getString("title")));
+                Log.i("JSON", jsonObject.toString());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
@@ -49,10 +123,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
 
-        Log.i("LOL", "MAP READY :D");
         // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        LatLng centerSwitzerland = new LatLng(46.7985, 8.2318);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(centerSwitzerland, 6.5f));
     }
+
+    private boolean checkConnection() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(connectivityManager.getActiveNetworkInfo() != null) {
+            if(connectivityManager.getActiveNetworkInfo().isConnected()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
