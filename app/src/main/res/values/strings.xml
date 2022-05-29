@@ -1,4 +1,9 @@
 <resources>
-    <string name="app_name">Relais Finder</string>
-    <string name="title_activity_maps">MapsActivity</string>
+    <string name="app_name" translatable="false">Relais Finder</string>
+    <string name="title_activity_maps" translatable="false">MapsActivity</string>
+    <string name="no_marker_selected">No marker selected</string>
+    <string name="info_table_title">Title</string>
+    <string name="info_table_callsign">Callsign</string>
+    <string name="info_table_frequency_in">Frequency in</string>
+    <string name="info_table_frequency_out">Frequency out</string>
 </resources>

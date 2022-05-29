@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_marker_selected">Ke Standort usgwäut</string>
+    <string name="info_table_title">Titu</string>
+    <string name="info_table_callsign">Ruefname</string>
+    <string name="info_table_frequency_in">Igehendi Frequänz</string>
+    <string name="info_table_frequency_out">Usgehendi Frequänz</string>
+</resources>

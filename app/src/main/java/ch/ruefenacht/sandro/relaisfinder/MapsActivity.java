@@ -4,7 +4,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.FragmentActivity;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
@@ -12,12 +11,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
+import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import org.json.JSONArray;
@@ -29,21 +30,24 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.HashMap;
+import java.util.Map;
 
 import ch.ruefenacht.sandro.relaisfinder.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
+    private static Map<Integer, RadioRepeaterModel> radioRepeaterModels = new HashMap<>();
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        binding = ActivityMapsBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        this.binding = ActivityMapsBinding.inflate(getLayoutInflater());
+        setContentView(this.binding.getRoot());
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -62,7 +66,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void run() {
                 try {
                     URL url = new URL(BuildConfig.RELAIS_FINDER_API_URL + "relais");
-                    Log.i("LOL", url.toString());
                     URLConnection urlConnection = url.openConnection();
                     InputStream in = urlConnection.getInputStream();
 
@@ -71,8 +74,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     StringBuilder resultContent = new StringBuilder();
                     String inputLine;
                     while ((inputLine = reader.readLine()) != null) {
-                        System.out.println(inputLine);
-                        Log.i("HTTP", inputLine);
                         resultContent.append(inputLine);
                     }
                     in.close();
@@ -100,14 +101,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if(!jsonObject.has("ID"))
                     throw new Exception();
 
-                this.mMap.addMarker(new MarkerOptions().position(new LatLng(jsonObject.getDouble("coordinateX"), jsonObject.getDouble("coordinateY"))).title(jsonObject.getString("title")));
-                Log.i("JSON", jsonObject.toString());
+                Marker marker = this.mMap.addMarker(new MarkerOptions().position(new LatLng(jsonObject.getDouble("coordinateX"), jsonObject.getDouble("coordinateY"))).title(jsonObject.getString("title")));
+                if(marker != null) {
+                    RadioRepeaterModel radioRepeaterModel = new RadioRepeaterModel(jsonObject);
+                    radioRepeaterModels.put(radioRepeaterModel.ID, radioRepeaterModel);
+                    marker.setTag(radioRepeaterModel.ID);
+                }
             }
+            this.mMap.setOnMarkerClickListener(this);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -121,11 +126,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
-        mMap = googleMap;
+        this.mMap = googleMap;
 
         // Add a marker in Sydney and move the camera
         LatLng centerSwitzerland = new LatLng(46.7985, 8.2318);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(centerSwitzerland, 6.5f));
+        this.mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(centerSwitzerland, 6.5f));
     }
 
     private boolean checkConnection() {
@@ -138,4 +143,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return false;
     }
 
+    @Override
+    public boolean onMarkerClick(@NonNull Marker marker) {
+        Integer clickCount = (Integer) marker.getTag();
+
+        // Check if a click count was set, then display the click count.
+        if (clickCount != null) {
+            if(!radioRepeaterModels.containsKey(marker.getTag())) {
+                Log.e("Relais Finder", "Radio Repeater '" + marker.getTag() + "' not found!");
+            }
+            String markerInfoTable = this.getInfoTable(radioRepeaterModels.get(marker.getTag()));
+            ((TextView)findViewById(R.id.markerOutput)).setText(markerInfoTable);
+        }
+
+        return false;
+    }
+
+    private String getInfoTable(RadioRepeaterModel radioRepeater) {
+        return getResources().getString(R.string.info_table_title) + ":                     " + radioRepeater.title + "\n" +
+                getResources().getString(R.string.info_table_callsign) + ":               " + radioRepeater.callsign + "\n" +
+                getResources().getString(R.string.info_table_frequency_in) + ":      " + radioRepeater.frequencyIn + " Mhz \n" +
+                getResources().getString(R.string.info_table_frequency_out) + ":   " + radioRepeater.frequencyOut + " Mhz";
+    }
 }

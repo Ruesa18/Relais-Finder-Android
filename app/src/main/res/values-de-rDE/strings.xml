@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_marker_selected">Kein Standort ausgewählt</string>
+    <string name="info_table_title">Titel</string>
+    <string name="info_table_callsign">Rufname</string>
+    <string name="info_table_frequency_in">Frequenz eingehend</string>
+    <string name="info_table_frequency_out">Frequenz ausgehend</string>
+</resources>
