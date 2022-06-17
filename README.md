@@ -9,5 +9,5 @@ This app uses a simple [backend](https://github.com/Ruesa18/Relais-Finder-Backen
 
 ## Installation
 In order to use this app in a development environment you will need to add some keys to your `local.properties` file:
-- save your Google Maps API Key as `googleMapsApiKey`
-- save the URL of your Relais Finder API as `relaisFinderApiUrl`
+- save your Google Maps API Key as `MAPS_API_KEY`
+- save the URL of your Relais Finder API as `RELAIS_FINDER_API_URL`
